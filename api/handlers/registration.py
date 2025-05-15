@@ -11,6 +11,9 @@ from os import urandom
 from .base import BaseHandler
 from .Encrypt_Decrypt import encrypt_field  
 
+HASH_ITERATIONS = 100000
+HASH_LENGTH = 32
+
 class RegistrationHandler(BaseHandler):
 
     @coroutine
@@ -82,3 +85,16 @@ class RegistrationHandler(BaseHandler):
             'disabilities_iv': encrypted_disabilities['iv'],
             'disabilities_tag': encrypted_disabilities['tag'],
         }
+
+        # Saves the user to the database (If they don't already exist)
+        yield self.db.users.insert_one(user_doc)
+
+        # Returns Successful Response
+        self.set_status(200)
+        self.response['email'] = email
+        self.response['displayName'] = display_name
+        self.response['address'] = address
+        self.response['dob'] = dob
+        self.response['phoneNumber'] = phone_number
+        self.response['disabilities'] = disabilities
+        self.write_json()
