@@ -1,9 +1,15 @@
-from json import dumps
-from logging import info
-from tornado.escape import json_decode, utf8
+# Mark Doyle
+# C00257481
+from tornado.escape import json_decode
 from tornado.gen import coroutine
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
+from base64 import b64encode
+from os import urandom
 
 from .base import BaseHandler
+from .Encrypt_Decrypt import encrypt_field  
 
 class RegistrationHandler(BaseHandler):
 
