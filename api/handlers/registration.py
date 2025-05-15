@@ -11,6 +11,7 @@ from os import urandom
 from .base import BaseHandler
 from .Encrypt_Decrypt import encrypt_field  
 
+#Password Hashing
 HASH_ITERATIONS = 100000
 HASH_LENGTH = 32
 
