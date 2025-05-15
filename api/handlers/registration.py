@@ -18,48 +18,67 @@ class RegistrationHandler(BaseHandler):
         try:
             body = json_decode(self.request.body)
             email = body['email'].lower().strip()
-            if not isinstance(email, str):
-                raise Exception()
             password = body['password']
-            if not isinstance(password, str):
+            display_name = body.get('displayName', email)
+            address = body.get('address', '')
+            dob = body.get('dob', '')
+            phone_number = body.get('phoneNumber', '')
+            disabilities = body.get('disabilities', '')
+
+            # Check if all user fields are strings
+            if not all(isinstance(f, str) for f in [email, password, display_name, address, dob, phone_number, disabilities]):
                 raise Exception()
-            display_name = body.get('displayName')
-            if display_name is None:
-                display_name = email
-            if not isinstance(display_name, str):
-                raise Exception()
-        except Exception as e:
-            self.send_error(400, message='You must provide an email address, password and display name!')
+        except:
+            # Return error if fail is promted or data is invalid
+            self.send_error(400, message='Invalid registration data!')
             return
 
-        if not email:
-            self.send_error(400, message='The email address is invalid!')
+        # Checks if user already exists
+        existing_user = yield self.db.users.find_one({'email': email})
+        if existing_user:
+            self.send_error(409, message='User already exists!')
             return
 
-        if not password:
-            self.send_error(400, message='The password is invalid!')
-            return
+        salt = urandom(16)
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=HASH_LENGTH,
+            salt=salt,
+            iterations=HASH_ITERATIONS,
+            backend=default_backend()
+        )
+        hashed_password = b64encode(kdf.derive(password.encode('utf-8'))).decode('utf-8')
 
-        if not display_name:
-            self.send_error(400, message='The display name is invalid!')
-            return
+        # Use central encrypt function for each personal field
+        encrypted_display = encrypt_field(display_name)
+        encrypted_address = encrypt_field(address)
+        encrypted_dob = encrypt_field(dob)
+        encrypted_phone = encrypt_field(phone_number)
+        encrypted_disabilities = encrypt_field(disabilities)
 
-        user = yield self.db.users.find_one({
-          'email': email
-        }, {})
-
-        if user is not None:
-            self.send_error(409, message='A user with the given email address already exists!')
-            return
-
-        yield self.db.users.insert_one({
+        # Creates the user data/document for the database
+        user_doc = {
             'email': email,
-            'password': password,
-            'displayName': display_name
-        })
+            'password': hashed_password,
+            'salt': b64encode(salt).decode('utf-8'),
 
-        self.set_status(200)
-        self.response['email'] = email
-        self.response['displayName'] = display_name
+            'displayName': encrypted_display['ciphertext'],
+            'displayName_iv': encrypted_display['iv'],
+            'displayName_tag': encrypted_display['tag'],
 
-        self.write_json()
+            'address': encrypted_address['ciphertext'],
+            'address_iv': encrypted_address['iv'],
+            'address_tag': encrypted_address['tag'],
+
+            'dob': encrypted_dob['ciphertext'],
+            'dob_iv': encrypted_dob['iv'],
+            'dob_tag': encrypted_dob['tag'],
+
+            'phoneNumber': encrypted_phone['ciphertext'],
+            'phoneNumber_iv': encrypted_phone['iv'],
+            'phoneNumber_tag': encrypted_phone['tag'],
+
+            'disabilities': encrypted_disabilities['ciphertext'],
+            'disabilities_iv': encrypted_disabilities['iv'],
+            'disabilities_tag': encrypted_disabilities['tag'],
+        }
