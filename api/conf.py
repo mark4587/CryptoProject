@@ -8,3 +8,6 @@ MONGODB_HOST = {
 MONGODB_DBNAME = 'cyberStudents'
 
 WORKERS = 32
+
+# Key
+SHARED_KEY = b64decode("IoOLBIG3imhiKWvHveuOz+8+bjQU7QTO8P1S85ygI8g=")
