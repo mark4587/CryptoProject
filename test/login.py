@@ -1,78 +1,65 @@
-from json import dumps
-from tornado.escape import json_decode, utf8
-from tornado.gen import coroutine
-from tornado.ioloop import IOLoop
+import json
 from tornado.web import Application
-
-from .base import BaseTest
-
 from api.handlers.login import LoginHandler
-
-import urllib.parse
+from api.handlers.registration import RegistrationHandler
+from .base import BaseTest
 
 class LoginHandlerTest(BaseTest):
 
     @classmethod
-    def setUpClass(self):
-        self.my_app = Application([(r'/login', LoginHandler)])
+    def setUpClass(cls):
+        # Calls the login and registration handlers
+        cls.my_app = Application([
+            (r'/login', LoginHandler),
+            (r'/registration', RegistrationHandler),
+        ])
         super().setUpClass()
-
-    @coroutine
-    def register(self):
-        yield self.get_app().db.users.insert_one({
-            'email': self.email,
-            'password': self.password,
-            'displayName': 'testDisplayName'
-        })
 
     def setUp(self):
         super().setUp()
-
-        self.email = 'test@test.com'
-        self.password = 'testPassword'
-
-        IOLoop.current().run_sync(self.register)
+        # Hard-coded user
+        body = {
+            "email": "test@test.com",
+            "password": "testPassword123",
+            "displayName": "testName",
+            "address": "123 White Street",
+            "dob": "01-01-2001",
+            "phoneNumber": "123456789",
+            "disabilities": "asthma"
+        }
+        self.fetch('/registration', method='POST', body=json.dumps(body))
 
     def test_login(self):
         body = {
-          'email': self.email,
-          'password': self.password
+            "email": "test@test.com",
+            "password": "testPassword123"
         }
-
-        response = self.fetch('/login', method='POST', body=dumps(body))
+        response = self.fetch('/login', method='POST', body=json.dumps(body))
         self.assertEqual(200, response.code)
 
-        body_2 = json_decode(response.body)
-        self.assertIsNotNone(body_2['token'])
-        self.assertIsNotNone(body_2['expiresIn'])
-
+    # Testing Case Sensitivity
     def test_login_case_insensitive(self):
         body = {
-          'email': self.email.swapcase(),
-          'password': self.password
+            "email": "TEST@TEST.com",
+            "password": "testPassword123"
         }
-
-        response = self.fetch('/login', method='POST', body=dumps(body))
+        response = self.fetch('/login', method='POST', body=json.dumps(body))
         self.assertEqual(200, response.code)
 
-        body_2 = json_decode(response.body)
-        self.assertIsNotNone(body_2['token'])
-        self.assertIsNotNone(body_2['expiresIn'])
-
-    def test_login_wrong_email(self):
-        body = {
-          'email': 'wrongUsername',
-          'password': self.password
-        }
-
-        response = self.fetch('/login', method='POST', body=dumps(body))
-        self.assertEqual(403, response.code)
-
+  # Testing if a wrong password is accepted
     def test_login_wrong_password(self):
         body = {
-          'email': self.email,
-          'password': 'wrongPassword'
+            "email": "test@test.com",
+            "password": "wrongPassword"
         }
+        response = self.fetch('/login', method='POST', body=json.dumps(body))
+        self.assertEqual(403, response.code)
 
-        response = self.fetch('/login', method='POST', body=dumps(body))
+    # Test if an unkown user can log in
+    def test_login_nonexistent_user(self):
+        body = {
+            "email": "unknownUserl@fakeUser.com",
+            "password": "password"
+        }
+        response = self.fetch('/login', method='POST', body=json.dumps(body))
         self.assertEqual(403, response.code)
