@@ -4,11 +4,8 @@ from tornado.gen import coroutine
 from tornado.httputil import HTTPHeaders
 from tornado.ioloop import IOLoop
 from tornado.web import Application
-
 from api.handlers.logout import LogoutHandler
-
 from .base import BaseTest
-
 import urllib.parse
 
 class LogoutHandlerTest(BaseTest):
