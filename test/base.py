@@ -1,28 +1,53 @@
-from concurrent.futures import ThreadPoolExecutor
-from motor import MotorClient
-from tornado.ioloop import IOLoop
-from tornado.testing import AsyncHTTPTestCase
+# Mark Doyle
+# C00257481
+from json import dumps, loads
+from tornado.web import RequestHandler
 
-from .conf import MONGODB_HOST, MONGODB_DBNAME, WORKERS
+class BaseHandler(RequestHandler):
 
-class BaseTest(AsyncHTTPTestCase):
+    @property
+    def db(self):
+        # Gives access to the MongoDB database connection
+        return self.application.db
 
-    @classmethod
-    def setUpClass(self):
-        self.my_app.db = MotorClient(**MONGODB_HOST)[MONGODB_DBNAME]
+    @property
+    def executor(self):
+        return self.application.executor
 
-        self.my_app.executor = ThreadPoolExecutor(WORKERS)
+    def prepare(self):
+        if self.request.body:
+            try:
+                # Reads JSON data
+                json_data = loads(self.request.body)
+                self.request.arguments.update(json_data)
+            except ValueError:
+                # Prompts error if it can't read the file
+                self.send_error(400, message='Unable to parse JSON.')
+        self.response = dict()
 
-    def get_new_ioloop(self):
-        return IOLoop.current()
+    def set_default_headers(self):
+        self.set_header('Content-Type', 'application/json')
+        self.set_header('Access-Control-Allow-Origin', '*')
+        self.set_header('Access-Control-Allow-Methods', '*')
+        self.set_header('Access-Control-Allow-Headers', '*')
 
-    def get_app(self):
-        return self.my_app
 
-    def setUp(self):
-        super().setUp()
-        self.get_app().db.users.drop()
+    # Prompts Error Messages Where Needed
+    def write_error(self, status_code, **kwargs):
+        if 'message' not in kwargs:
+            if status_code == 405:
+                kwargs['message'] = 'Invalid HTTP method.'
+            else:
+                kwargs['message'] = 'Unknown error.'
+        self.response = {
+            "error": kwargs['message']
+        }
+        self.write_json()
 
-    def tearDown(self):
-        super().tearDown()
-        self.get_app().db.users.drop()
+    def write_json(self):
+        output = dumps(self.response)
+        self.write(output)
+
+    def options(self):
+        self.set_status(204)
+        self.finish()
