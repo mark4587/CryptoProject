@@ -1,3 +1,5 @@
+# Mark Doyle
+# C00257481
 from tornado.gen import coroutine
 from tornado.web import authenticated
 
@@ -8,10 +10,13 @@ class LogoutHandler(AuthHandler):
     @authenticated
     @coroutine
     def post(self):
-        yield self.db.users.update_one({
+        yield self.db.users.update_one(
+        {
             'email': self.current_user['email'],
-        }, {
-            '$set': {
+        }, 
+        {
+            '$set': 
+            {
                 'token': None
             }
         })
